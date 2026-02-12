@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { Question, ScoreMap } from "@/lib/linky-types";
 
 interface SceneQuestionProps {
@@ -25,6 +25,12 @@ export function SceneQuestion({
   onAnswer,
 }: SceneQuestionProps) {
   const [selected, setSelected] = useState<number | null>(null);
+  const [hoverReady, setHoverReady] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setHoverReady(true), 900);
+    return () => clearTimeout(t);
+  }, []);
 
   const handleSelect = (index: number) => {
     if (selected !== null) return;
@@ -132,7 +138,7 @@ export function SceneQuestion({
                 delay: 0.6 + i * 0.15,
               }}
               whileHover={
-                selected === null
+                selected === null && hoverReady
                   ? {
                       boxShadow: `0 0 20px var(--mint)`,
                       borderColor: "var(--mint)",
