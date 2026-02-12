@@ -1,50 +1,31 @@
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { headers } from "next/headers";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { sessionId, resultType, selectedGathering, answers, talk, depth, spark, focus } = body;
 
-    const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
-    const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-    const sheetId = process.env.GOOGLE_SHEET_ID;
+    const headersList = await headers();
+    const ip =
+      headersList.get("x-forwarded-for")?.split(",")[0].trim() ||
+      headersList.get("x-real-ip") ||
+      "unknown";
 
-    if (!clientEmail || !privateKey || !sheetId) {
-      // Silently skip if env vars not configured
+    const scriptUrl = "https://script.google.com/macros/s/AKfycbzjMQTgieASfHip99ZX5LJ3c-iFcoyoTaAO-mUqBf5IC2wrXEpyPFVA3UJlLgEeQ5E/exec";
+
+    if (!scriptUrl) {
       return NextResponse.json({ success: true, skipped: true });
     }
 
-    const auth = new google.auth.JWT(clientEmail, undefined, privateKey, [
-      "https://www.googleapis.com/auth/spreadsheets",
-    ]);
-
-    const sheets = google.sheets({ version: "v4", auth });
-
-    const timestamp = new Date().toISOString();
-
-    const answerList = Array.isArray(answers) ? answers : [];
-
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: sheetId,
-      range: "Sheet1!A:K",
-      valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [[
-          timestamp,
-          sessionId,
-          resultType,
-          selectedGathering || "",
-          answerList[0] || "",
-          answerList[1] || "",
-          answerList[2] || "",
-          talk,
-          depth,
-          spark,
-          focus,
-        ]],
-      },
+    const res = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...body, ip }),
     });
+
+    if (!res.ok) {
+      throw new Error(`Google Script responded with ${res.status}`);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
